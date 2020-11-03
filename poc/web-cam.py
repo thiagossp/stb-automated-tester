@@ -4,7 +4,7 @@ import numpy as np
 import re
 
 # video source and info
-videoCapture = cv2.VideoCapture("MVI_8683.MOV")
+videoCapture = cv2.VideoCapture("video1.MOV")
 length = int(videoCapture.get(cv2.CAP_PROP_FRAME_COUNT))
 videoWidth = videoCapture.get(cv2.CAP_PROP_FRAME_WIDTH)
 videoHeight = videoCapture.get(cv2.CAP_PROP_FRAME_HEIGHT)
@@ -19,6 +19,7 @@ areaChannelName = [int(videoHeight) - 170, int(videoHeight) - 120, 250, 600]
 areaChannelNumber = [int(videoHeight) - 170, int(videoHeight) - 120, 180, 248]
 areaClockArea = [int(videoHeight) - 170, int(videoHeight) - 130, int(videoWidth) - 100, int(videoWidth) - 10]
 areaImageTest = [10, int(videoHeight) - 200, 10, int(videoWidth) - 10]
+areaLogo = [int(videoHeight) - 140, int(videoHeight) - 30, 0, 110]
 
 # get grayscale image
 def get_grayscale(image):
@@ -56,12 +57,28 @@ def getOcr(image, regularExpression, fileName):
     custom_config = r'--psm 7 --oem 3'
     text = pytesseract.image_to_string(gray, config=custom_config)
     text = text.split("\n")
-
-    cv2.imwrite("./imagens/frame%d.jpg" % fileName, gray) #Save frame to img
     
     if regularExpression.search(text[0]) is not None:
         return(regularExpression.search(text[0]).group(0))
-    return        
+    return   
+
+def saveFrame(frame, fileName):
+    gray = get_grayscale(frame)
+    cv2.imwrite("./imagens/frame%d.jpg" % fileName, gray)
+
+def checkLogo(logoReference, logoToTest):
+    histogram1 = cv2.calcHist([cv2.imread('logos/frame%d.jpg' % logoReference)], [0], None, [256], [0, 256])
+
+    histogram2 = cv2.calcHist([cv2.imread('imagens/frame%d.jpg' % logoReference)], [0], None, [256], [0, 256])
+
+    c1, c2 = 0, 0
+
+    i = 0 
+    while i < len(histogram1) and i < len(histogram2):
+        c1 += (histogram1[i] - histogram2[i])**2
+        i += 1
+    c1 = c1**(1 / 2)
+    return(c1)
 
 print( length )
 print(videoWidth , " x " , videoHeight)
@@ -79,6 +96,7 @@ while (1):
     plotArea(areaChannelName)
     plotArea(areaChannelNumber)
     plotArea(areaClockArea)
+    plotArea(areaLogo)
 
     if frameCountDelta >= 100:
         frameCountDelta = 0
@@ -88,6 +106,7 @@ while (1):
             if chanelNumber is not None:
                 clock = getOcr(getFrameArea(areaClockArea), reClock, frameCount + 2)
                 blackScreen = checkBlackScreen(getFrameArea(areaImageTest))
+                saveFrame(getFrameArea(areaLogo), int(chanelNumber))
                 if lastLog != (str(chanelNumber) + " - " + str(chanelName) + ' - Black Screen: ' + str(blackScreen) + ' - Clock: ' + str(clock)):
                     lastLog = str(chanelNumber) + " - " + str(chanelName) + ' - Black Screen: ' + str(blackScreen) + ' - Clock: ' + str(clock)
                     print(lastLog)
